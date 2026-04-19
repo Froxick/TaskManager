@@ -29,7 +29,7 @@ class ErrorInterceptor extends Interceptor {
 
     if (error.type == DioExceptionType.connectionError) {
       return ApiError(
-        message: 'Нет соединения с интернетом',
+        message: 'Нет соединения с сервером',
         errorCode: 'NETWORK_ERROR',
         timestamp: DateTime.now().toIso8601String(),
       );

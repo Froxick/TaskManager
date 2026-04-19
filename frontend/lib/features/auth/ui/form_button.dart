@@ -7,13 +7,15 @@ class FormButton extends StatelessWidget {
   final String subTitle;
   final VoidCallback submit;
   final VoidCallback navigate;
+  final bool isValid;
 
   const FormButton(
       {super.key,
       required this.buttonTitle,
       required this.subTitle,
       required this.navigate,
-      required this.submit});
+      required this.submit,
+      required this.isValid});
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +29,7 @@ class FormButton extends StatelessWidget {
             onPress: submit,
             padding: height * 0.01,
             height: height * 0.06,
-            isValid: true),
+            isValid: isValid),
         MouseRegion(
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
