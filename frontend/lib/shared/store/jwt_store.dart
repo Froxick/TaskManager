@@ -18,6 +18,11 @@ class JwtStore {
     return prefs.getString(_refreshTokenKey);
   }
 
+  Future<String?> getJwtToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_accessTokenKey);
+  }
+
   Future<bool> hasTokens() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_accessTokenKey) != null &&
