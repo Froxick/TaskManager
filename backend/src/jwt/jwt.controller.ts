@@ -23,7 +23,10 @@ export class JwtController {
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   async refreshUserTokens(@Body() dto: RefreshTokenDto) {
     const tokens = await this.jwtService.refreshUserTokens(dto.refreshToken);
-    return { tokens };
+    return {
+      accessToken: tokens.accesToken,
+      refreshToken: tokens.refreshToken,
+    };
   }
 
   @Post('logout')

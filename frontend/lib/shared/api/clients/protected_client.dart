@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:frontend/features/auth/auth_notifier.dart';
 import 'package:frontend/shared/api/interceptor/auth_interceptor.dart';
 import 'package:frontend/shared/api/interceptor/error_interceptor.dart';
 import 'package:frontend/shared/store/jwt_store.dart';
@@ -14,7 +15,8 @@ class ProtectedClient {
         receiveTimeout: Duration(seconds: 5),
         headers: {'Content-Type': 'application/json'}));
 
-    dio.interceptors.add(AuthInterceptor(dio: dio, storage: jwtStore));
+    dio.interceptors.add(AuthInterceptor(
+        dio: dio, storage: jwtStore, authNotifier: authNotifier));
     dio.interceptors.add(ErrorInterceptor());
   }
 }

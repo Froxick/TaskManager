@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -19,20 +20,22 @@ import { AuthGuard } from 'src/Guards/AuthGuard';
 import { ProjectCreateDto } from './DTO/ProjectCreateDto';
 import { ProjectUpdateDto } from './DTO/ProjectUpdateDto';
 import { ProjectFilterDto } from './DTO/ProjectFilterDto';
+import { JwtData } from 'src/jwt/jwt.data';
 
 @Controller('project')
 export class ProjectController {
   constructor(private readonly service: ProjectService) {}
 
-  @Get(':userId')
+  @Get()
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   async getUserProjects(
-    @Param('userId', ParseIntPipe) userId: number,
+    @Req() req: { user: JwtData },
+    // @Param('userId', ParseIntPipe) userId: number,
     @Query() filters: ProjectFilterDto,
   ) {
     return await this.service.getProjectsByUserId(
-      userId,
+      req.user.id,
       filters.isCompleted || false,
       filters.isArchived || false,
     );
@@ -48,18 +51,22 @@ export class ProjectController {
       transform: true,
     }),
   )
-  async createProject(@Body() createDto: ProjectCreateDto) {
-    return await this.service.createNewProject(createDto);
+  async createProject(
+    @Body() createDto: ProjectCreateDto,
+    @Req() req: { user: JwtData },
+  ) {
+    return await this.service.createNewProject(createDto, req.user.id);
   }
 
-  @Patch(':id')
+  @Patch(':projectId')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   async updateProject(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Req() req: { user: JwtData },
     @Body() dto: ProjectUpdateDto,
   ) {
-    return await this.service.updateProject(dto, id);
+    return await this.service.updateProject(dto, projectId, req.user.id);
   }
 
   @Patch('status/:id')
@@ -67,9 +74,9 @@ export class ProjectController {
   @UseGuards(AuthGuard)
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body() userId: number,
+    @Req() req: { user: JwtData },
   ) {
-    return await this.service.updateStatus(id, userId);
+    return await this.service.updateStatus(id, req.user.id);
   }
 
   @Delete(':id')
@@ -77,8 +84,8 @@ export class ProjectController {
   @UseGuards(AuthGuard)
   async archivedProject(
     @Param('id', ParseIntPipe) id: number,
-    @Query('userId') userId: number,
+    @Req() req: { user: JwtData },
   ) {
-    return await this.service.archivedProject(id, userId);
+    return await this.service.archivedProject(id, req.user.id);
   }
 }

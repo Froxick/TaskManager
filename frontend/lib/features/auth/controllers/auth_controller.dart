@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/features/auth/api/auth_api.dart';
+import 'package:frontend/features/auth/auth_notifier.dart';
 import 'package:frontend/shared/api/errors/api_error.dart';
 import 'package:frontend/shared/store/jwt_store.dart';
+import 'package:get/get.dart';
 
 class AuthController extends ChangeNotifier {
   final AuthApi _authApi = AuthApi();
-  final JwtStore _jwtStore = JwtStore();
+  final JwtStore _jwtStore = Get.find<JwtStore>();
 
   bool _registerLoading = false;
   String? _registerError;
@@ -54,6 +56,7 @@ class AuthController extends ChangeNotifier {
               accessToken: accessToken, refreshToken: refreshToken);
           _loginLoading = false;
           notifyListeners();
+          authNotifier.value = true;
           return true;
         } else {
           throw Exception('Токены не найдены');
@@ -97,6 +100,7 @@ class AuthController extends ChangeNotifier {
             accessToken: accessToken,
             refreshToken: refreshToken,
           );
+          authNotifier.value = true;
         }
       }
 

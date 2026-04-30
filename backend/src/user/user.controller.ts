@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -21,6 +22,7 @@ import { UserFilterDto } from './DTO/userFilterDto';
 import { UserUpdateDto } from './DTO/userUpdateDto';
 import { UserLoginDto } from './DTO/userLoginDto';
 import { UserRegisterDto } from './DTO/userRegisterDto';
+import { JwtData } from 'src/jwt/jwt.data';
 
 @Controller('user')
 export class UserController {
@@ -40,11 +42,17 @@ export class UserController {
     );
   }
 
-  @Get(':id')
+  @Get('findUser/:id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   async getUserById(@Param('id', ParseIntPipe) id: number) {
     return await this.userService.getOneUser(id);
+  }
+
+  @Get('profile')
+  @UseGuards(AuthGuard)
+  async getUserProfile(@Req() req: { user: JwtData }) {
+    return await this.userService.getProfile(req.user.id);
   }
 
   @Delete(':id')
@@ -97,6 +105,7 @@ export class UserController {
     }),
   )
   async registerUser(@Body() dto: UserRegisterDto) {
+    console.log(dto);
     const user = await this.userService.registerUser(dto);
     const tokens = await this.jwtService.generateTokens({
       email: user.email,

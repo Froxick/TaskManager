@@ -4,7 +4,8 @@ import 'package:frontend/features/auth/controllers/login_form_controller.dart';
 import 'package:frontend/features/auth/controllers/regisrer_form_controller.dart';
 import 'package:frontend/features/auth/widgets/login_form.dart';
 import 'package:frontend/features/auth/widgets/register_form.dart';
-import 'package:frontend/features/home/screen/home_screen.dart';
+
+import 'package:go_router/go_router.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -46,8 +47,7 @@ class AuthScreenState extends State<AuthScreen> {
     final width = size.width;
 
     void navigateToHome() {
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => HomeScreen()));
+      context.go('/');
     }
 
     double formWidth;

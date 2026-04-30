@@ -1,5 +1,5 @@
 export class ProjectCreateDto {
-  userId: number;
+  // userId: number;
   name: string;
   description: string;
 }

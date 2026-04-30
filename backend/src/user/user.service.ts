@@ -27,6 +27,20 @@ export class UserService {
       throw e;
     }
   }
+  async getProfile(id: number) {
+    try {
+      const findUser = await this.repository.findById({ id });
+      if (!findUser)
+        throw new AppException('Пользователь не найден', 404, 'USER_NOT_FOUND');
+      return {
+        name: findUser.name,
+        email: findUser.email,
+        id: findUser.id,
+      };
+    } catch (e) {
+      throw e;
+    }
+  }
   async getUsers(page: number, limit: number, email?: string) {
     const where: Prisma.UserWhereInput = {};
     if (email) {
@@ -73,8 +87,11 @@ export class UserService {
         throw new AppException('Пользователь уже существует', 409);
       }
       const user = new UserEntity(dto.email, dto.name);
+      console.log(user, 'user');
       const salt = this.configService.get<string>('SALT');
+      console.log(salt, 'salt');
       await user.setPassword(dto.password, Number(salt));
+      console.log(user.password);
       const newUser = await this.repository.create({
         email: user.email,
         name: user.name,

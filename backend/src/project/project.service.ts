@@ -26,22 +26,31 @@ export class ProjectService {
     }
   }
 
-  async createNewProject(dto: ProjectCreateDto) {
+  async createNewProject(dto: ProjectCreateDto, userId: number) {
     try {
-      return await this.repository.create({
+      const project = await this.repository.create({
         name: dto.name,
         description: dto.description,
         user: {
-          connect: { id: dto.userId },
+          connect: { id: userId },
         },
       });
+      return {
+        project,
+        totalTasksCount: 0,
+        completedTasksCount: 0,
+      };
     } catch (e) {
       throw e;
     }
   }
-  async updateProject(dto: ProjectUpdateDto, projectId: number) {
+  async updateProject(
+    dto: ProjectUpdateDto,
+    projectId: number,
+    userId: number,
+  ) {
     try {
-      await this.checkUser(dto.userId, projectId);
+      await this.checkUser(userId, projectId);
 
       const updatetProject = await this.repository.update(
         {

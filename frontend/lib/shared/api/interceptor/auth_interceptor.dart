@@ -1,25 +1,31 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:frontend/shared/store/jwt_store.dart';
 
 class AuthInterceptor extends Interceptor {
   final Dio dio;
-  final Dio refreshDio;
   final JwtStore storage;
-
-  bool _isRefreshing = false;
+  final ValueNotifier<bool> authNotifier;
 
   AuthInterceptor({
     required this.dio,
     required this.storage,
-  }) : refreshDio = Dio(BaseOptions(
-          baseUrl: dio.options.baseUrl,
-          connectTimeout: const Duration(seconds: 5),
-        ));
+    required this.authNotifier,
+  });
+
+  Future<String?>? _refreshFuture;
+
+  void log(String message) {
+    debugPrint('[AUTH_INTERCEPTOR] $message');
+  }
 
   @override
   void onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
     final token = await storage.getJwtToken();
+
+    log('➡️ REQUEST: ${options.method} ${options.uri}');
+    log('Token attached: ${token != null}');
 
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
@@ -30,98 +36,125 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    final requestOptions = err.requestOptions;
+    final status = err.response?.statusCode;
+    final req = err.requestOptions;
 
-    if (err.response?.statusCode != 401) {
+    log('❌ ERROR: ${req.uri} | status: $status');
+
+    if (status != 401) {
       return handler.next(err);
     }
 
-    if (requestOptions.extra['retried'] == true) {
-      await storage.clearTokens();
+    if (req.extra['retried'] == true) {
+      log('🚨 Already retried → logout');
+      await _logout();
       return handler.next(err);
     }
 
     final refreshToken = await storage.getRefreshToken();
 
     if (refreshToken == null) {
+      log('🚨 No refresh token → logout');
+      await _logout();
       return handler.next(err);
     }
-
-    if (_isRefreshing) {
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      final newToken = await storage.getJwtToken();
-
-      if (newToken != null) {
-        final retryResponse = await dio.request(
-          requestOptions.path,
-          options: Options(
-            method: requestOptions.method,
-            headers: {
-              ...requestOptions.headers,
-              'Authorization': 'Bearer $newToken',
-            },
-            extra: {
-              ...requestOptions.extra,
-              'retried': true,
-            },
-          ),
-          data: requestOptions.data,
-          queryParameters: requestOptions.queryParameters,
-        );
-
-        return handler.resolve(retryResponse);
-      }
-
-      return handler.next(err);
-    }
-
-    _isRefreshing = true;
 
     try {
-      print('REFRESH TOKEN...');
+      log('🔄 Starting refresh flow...');
 
-      final response = await refreshDio.post(
-        '/jwt/refresh',
-        data: {
-          'refreshToken': refreshToken,
+      final newAccessToken = await _refresh(refreshToken);
+
+      if (newAccessToken == null) {
+        log('🚨 Refresh returned null → logout');
+        await _logout();
+        return handler.next(err);
+      }
+
+      log('✅ Refresh success → retry request');
+
+      final options = Options(
+        method: req.method,
+        headers: {
+          ...req.headers,
+          'Authorization': 'Bearer $newAccessToken',
         },
       );
 
-      final newAccess = response.data['accesToken'];
-      final newRefresh = response.data['refreshToken'];
-
-      await storage.saveTokens(
-        accessToken: newAccess,
-        refreshToken: newRefresh,
-      );
-
-      final retryResponse = await dio.request(
-        requestOptions.path,
-        options: Options(
-          method: requestOptions.method,
-          headers: {
-            ...requestOptions.headers,
-            'Authorization': 'Bearer $newAccess',
-          },
+      final response = await dio.request(
+        req.path,
+        data: req.data,
+        queryParameters: req.queryParameters,
+        options: options.copyWith(
           extra: {
-            ...requestOptions.extra,
+            ...req.extra,
             'retried': true,
           },
         ),
-        data: requestOptions.data,
-        queryParameters: requestOptions.queryParameters,
       );
 
-      _isRefreshing = false;
+      log('🎯 Retry success: ${req.uri}');
 
-      return handler.resolve(retryResponse);
+      return handler.resolve(response);
     } catch (e) {
-      _isRefreshing = false;
-
-      await storage.clearTokens();
-
-      return handler.next(e is DioException ? e : err);
+      log('💥 Refresh or retry failed: $e');
+      await _logout();
+      return handler.next(err);
     }
+  }
+
+  Future<String?> _refresh(String refreshToken) async {
+    if (_refreshFuture != null) {
+      log('⏳ Waiting existing refresh...');
+      return _refreshFuture;
+    }
+
+    _refreshFuture = _doRefresh(refreshToken);
+
+    final result = await _refreshFuture;
+    _refreshFuture = null;
+
+    return result;
+  }
+
+  Future<String?> _doRefresh(String refreshToken) async {
+    try {
+      log('📡 POST /jwt/refresh');
+
+      final response = await dio.post(
+        '/jwt/refresh',
+        data: {'refreshToken': refreshToken},
+        options: Options(
+          extra: {'skipAuth': true},
+        ),
+      );
+
+      log('📦 Refresh response: ${response.data}');
+
+      final accessToken = response.data['accessToken'];
+      final newRefreshToken = response.data['refreshToken'];
+
+      if (accessToken == null) {
+        log('❌ accessToken is null');
+        return null;
+      }
+
+      await storage.saveTokens(
+        accessToken: accessToken,
+        refreshToken: newRefreshToken,
+      );
+
+      log('💾 Tokens saved');
+
+      return accessToken;
+    } catch (e) {
+      log('💥 Refresh request failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> _logout() async {
+    log('🚪 LOGOUT');
+    await storage.clearTokens();
+    authNotifier.value = false;
   }
 }

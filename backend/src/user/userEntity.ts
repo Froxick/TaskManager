@@ -24,7 +24,7 @@ export class UserEntity {
   }
 
   public async setPassword(password: string, salt: number): Promise<void> {
-    await hash(password, salt);
+    this._password = await hash(password, salt);
   }
   public async validPassword(password: string): Promise<boolean> {
     return await compare(password, this._password);
